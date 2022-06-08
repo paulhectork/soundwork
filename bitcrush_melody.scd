@@ -10,13 +10,13 @@ s.quit;
   crackly crunch, lovely. density changes when upping bps.
 */
 
-SynthDef(\impulse, {
+SynthDef(\impulse_melody, {
+	// sine percussion w/ melodic mids and lows
 	arg bps, dirout=0, fxout;
-	var impulse, mldhigh, mldbass, bitcrush, dirsend, fxsend;
+	var impulse, mldhigh, mldbass, mix;
 
 	bps = Dust2.ar(bps);
 	impulse = BrownNoise.ar(bps);  // crackle
-
 	mldhigh = Ringz.ar(impulse, 440,
 		XLine.kr(
 			start:SinOsc.kr(impulse) * 100,
@@ -27,16 +27,25 @@ SynthDef(\impulse, {
 			start:SinOsc.kr(impulse) * 100,
 			end:4
 	));
-	bitcrush = Ringz.ar(impulse, SinOsc.kr(10000), 1);
 
-	dirsend = (mldbass*0.5) + (mldhigh*0.5); // polyphonic melody
-
-	Out.ar(fxout, bitcrush);  // fx out
-	// Out.ar(dirout, bitcrush ! 2);  // direct out
+	mix = (mldbass*0.5) + (mldhigh*0.5);
+	Out.ar(fxout, mix);
 }).add;
 
+SynthDef(\impulse_crush, {
+	// bitcrushed crackle
+	arg bps, dirout=0, fxout;
+	var impulse, bitcrush, dirsend;
+
+	bps = Dust2.ar(bps);
+	impulse = BrownNoise.ar(bps);  // crackle
+	bitcrush = Ringz.ar(impulse, SinOsc.kr(10000), 1);
+
+	Out.ar(fxout, bitcrush);
+}).add;
 
 SynthDef(\crush, {
+	// distort + crush the output of \impulse_bitcrush
 	arg input, fxout, ndist, ncmp, bs, lo, hi, fq, mkup, ear;
 	var dist, comp, trf, eq, in, mix;
 
@@ -48,8 +57,8 @@ SynthDef(\crush, {
 	)};
 	comp = {
 		arg inp, makeup;
-		DCompressor.ar(inp * 0.1, inp, 1, 40, -40, 10, 10, makeup, 1)
 		// sweet spot: inp, Dust.ar(10), 1, 40, -80, 10, 10, 40, 1 ; big impact of makeup level
+		DCompressor.ar(inp * 0.1, inp, 1, 40, -40, 10, 10, makeup, 1)
 	};
 
 	// setting the bus input
@@ -88,15 +97,15 @@ bR = Bus.audio(s, 1);
 bL2 = Bus.audio(s, 2);
 bR2 = Bus.audio(s, 2);
 
-// clock = TempoClock.new(9/12, 4, 10);
+// stereo works fine if crL - fxout is set to 0 and crR - fxout to 1.
 
-crL = Synth.new(\transf,
+crL = Synth.new(\crush,
 	[input:bL, fxout:bR2, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:90, ear:"L"]);
-crR = Synth.new(\transf,
+crR = Synth.new(\crush,
 	[input:bR, fxout:bL2, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:90, ear:"R";]
 );
-inL = Synth.before(crL, \impulse, [bps:5, fxout:bL]);
-inR = Synth.before(crR, \impulse, [bps:5, fxout:bR]);
+inL = Synth.before(crL, \impulse_crush, [bps:5, fxout:bL]);
+inR = Synth.before(crR, \impulse_crush, [bps:5, fxout:bR]);
 
 output = Mix([crL, crR]); // doesn't work..
 )
@@ -104,7 +113,7 @@ output = Mix([crL, crR]); // doesn't work..
 i.free; j.free; b.free;
 
 
-
+/* cool online example to build a reverb
 (
 {
 var s, z, y;
@@ -120,4 +129,5 @@ y = Mix.ar(Array.fill(7,{ CombL.ar(z, 0.1, LFNoise1.kr(0.1.rand, 0.04, 0.05), 15
 s+(0.2*y)
 }.scope
 )
+*/
 
