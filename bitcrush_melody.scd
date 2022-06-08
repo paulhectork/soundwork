@@ -98,7 +98,7 @@ crR = Synth.new(\transf,
 inL = Synth.before(crL, \impulse, [bps:5, fxout:bL]);
 inR = Synth.before(crR, \impulse, [bps:5, fxout:bR]);
 
-output = Mix([crL, crR]); // doesn't work.
+output = Mix([crL, crR]); // doesn't work..
 )
 
 i.free; j.free; b.free;
