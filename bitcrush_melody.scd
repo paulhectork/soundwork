@@ -90,7 +90,7 @@ SynthDef(\crush, {
 
 (
 /*
-  SYNTH CONNEXION & MIXING
+  SYNTH CONNEXION + MIXING
 */
 var bL, bR, inL, inR, cr, out;
 bL = Bus.audio(s, 1);
@@ -98,17 +98,21 @@ bR = Bus.audio(s, 1);
 b = Bus.audio(s, 2);
 
 cr = Synth.new(\crush,
-	[inL:bL, inR:bR, fxout:b, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]);
+	[inL:bL, inR:bR, fxout:0, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]);
 inL = Synth.before(cr, \impulse_crush, [bps:5, fxout:bL]);
 inR = Synth.before(cr, \impulse_crush, [bps:5, fxout:bR]);
 )
 
 
+
 (
-Server.default.record("musique/supercollider/out/test.aiff", b, 2, duration:25*60)
-/*r = Recorder(s);
-r.prepareForRecord("musique/supercollider/out/test.aiff", 2);
-r.record("musique/supercollider/out/test.aiff", 0, 2, 25*60);*/
+/*
+  RECORDING TO A FILE
+  https://github.com/supercollider/supercollider/wiki/Recording-in-SuperCollider-(WIP)
+*/
+Server.default.record(
+	"musique/supercollider/out/test.aiff", duration:25*60
+);
 )
 
 
