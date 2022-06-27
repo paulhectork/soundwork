@@ -32,10 +32,12 @@ SynthDef(\impulse_melody, {
 	Out.ar(fxout, mix);
 }).add;
 
+
+
 SynthDef(\impulse_crush, {
 	// bitcrushed crackle
-	arg bps, dirout=0, fxout;
-	var impulse, bitcrush, dirsend;
+	arg bps, fxout;
+	var impulse, bitcrush;
 
 	bps = Dust2.ar(bps);
 	impulse = BrownNoise.ar(bps);  // crackle
@@ -44,10 +46,12 @@ SynthDef(\impulse_crush, {
 	Out.ar(fxout, bitcrush);
 }).add;
 
+
+
 SynthDef(\crush, {
-	// distort + crush the output of \impulse_bitcrush
-	arg input, fxout, ndist, ncmp, bs, lo, hi, fq, mkup, ear;
-	var dist, comp, trf, eq, in, mix;
+	// distort + crush the output of \impulse_crush
+	arg input, fxout, ndist, ncmp, bs, lo, hi, fq, mkup, inL, inR;
+	var dist, comp, trf, eq, in;
 
 	// distorsion and compression functions
 	dist = {
@@ -58,11 +62,13 @@ SynthDef(\crush, {
 	comp = {
 		arg inp, makeup;
 		// sweet spot: inp, Dust.ar(10), 1, 40, -80, 10, 10, 40, 1 ; big impact of makeup level
-		DCompressor.ar(inp * 0.1, inp, 1, 40, -40, 10, 10, makeup, 1)
+		DCompressor.ar(inp * 0.1, inp, 1, 40, -80, 10, 10, makeup, 1)
 	};
 
-	// setting the bus input
-	in = In.ar(input, 1);
+	// setting the bus inputs and mixing them to stereo
+	inL = Pan2.ar(In.ar(inL, 1), 1);
+	inR = Pan2.ar(In.ar(inR, 1), -1);
+	in = Mix([inL, inR]);
 
 	// distorsion
 	trf = dist.value(in);
@@ -76,41 +82,34 @@ SynthDef(\crush, {
 	trf = comp.value(inp:trf, makeup:35);
 	trf = Limiter.ar(trf, 1);
 
-	// mixing + output
-	if (ear == "R", {var mix;
-		mix = Pan2.ar(trf, 1);
-	}, {
-		mix = Pan2.ar(trf, -1);
-	} );
-
-	Out.ar(fxout, mix);
+	Out.ar(fxout, trf);
 }).add;
 )
 
+
+
 (
 /*
-  SYNTH CONNEXION + MIXING
+  SYNTH CONNEXION & MIXING
 */
-var bL, bR, bR2, bL2, inL, inR, crL, crR, output, clock;
+var bL, bR, inL, inR, cr, out;
 bL = Bus.audio(s, 1);
 bR = Bus.audio(s, 1);
-bL2 = Bus.audio(s, 2);
-bR2 = Bus.audio(s, 2);
+b = Bus.audio(s, 2);
 
-// stereo works fine if crL - fxout is set to 0 and crR - fxout to 1.
-
-crL = Synth.new(\crush,
-	[input:bL, fxout:bR2, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:90, ear:"L"]);
-crR = Synth.new(\crush,
-	[input:bR, fxout:bL2, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:90, ear:"R";]
-);
-inL = Synth.before(crL, \impulse_crush, [bps:5, fxout:bL]);
-inR = Synth.before(crR, \impulse_crush, [bps:5, fxout:bR]);
-
-output = Mix([crL, crR]); // doesn't work..
+cr = Synth.new(\crush,
+	[inL:bL, inR:bR, fxout:b, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]);
+inL = Synth.before(cr, \impulse_crush, [bps:5, fxout:bL]);
+inR = Synth.before(cr, \impulse_crush, [bps:5, fxout:bR]);
 )
 
-i.free; j.free; b.free;
+
+(
+Server.default.record("musique/supercollider/out/test.aiff", b, 2, duration:25*60)
+/*r = Recorder(s);
+r.prepareForRecord("musique/supercollider/out/test.aiff", 2);
+r.record("musique/supercollider/out/test.aiff", 0, 2, 25*60);*/
+)
 
 
 /* cool online example to build a reverb
