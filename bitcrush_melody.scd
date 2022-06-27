@@ -10,28 +10,6 @@ s.quit;
   crackly crunch, lovely. density changes when upping bps.
 */
 
-SynthDef(\impulse_melody, {
-	// sine percussion w/ melodic mids and lows
-	arg bps, dirout=0, fxout;
-	var impulse, mldhigh, mldbass, mix;
-
-	bps = Dust2.ar(bps);
-	impulse = BrownNoise.ar(bps);  // crackle
-	mldhigh = Ringz.ar(impulse, 440,
-		XLine.kr(
-			start:SinOsc.kr(impulse) * 100,
-			end:2
-	));
-	mldbass = Ringz.ar(impulse, SinOscFB.kr(100, 0.15) * 100,
-		XLine.ar(
-			start:SinOsc.kr(impulse) * 100,
-			end:4
-	));
-
-	mix = (mldbass*0.5) + (mldhigh*0.5);
-	Out.ar(fxout, mix);
-}).add;
-
 
 
 SynthDef(\impulse_crush, {
@@ -84,6 +62,33 @@ SynthDef(\crush, {
 
 	Out.ar(fxout, trf);
 }).add;
+
+
+
+
+SynthDef(\impulse_melody, {
+	// sine percussion w/ melodic mids and lows
+	arg bps, dirout=0, fxout;
+	var bpsH, bpsB, impulseB, impulseH, high, bass, mix;
+
+	bpsH = Dust2.ar(bps);
+	bpsB = Dust2.ar(SinOsc.ar(bps) * 10);
+	impulseH = BrownNoise.ar(bpsH);
+	impulseB = BrownNoise.ar(bpsB);
+	high = Ringz.ar(impulseH, 440,
+		XLine.kr(
+			start:SinOsc.kr(impulseH) * 100,
+			end:2
+	));
+	bass = Ringz.ar(impulseB, SinOscFB.kr(100, 0.15) * 100,
+		XLine.ar(
+			start:SinOsc.kr(impulseB) * 100,
+			end:4
+	));
+
+	mix = (bass*0.3) + (high*0.3);
+	Out.ar(dirout, mix ! 2);
+}).add;
 )
 
 
@@ -92,15 +97,20 @@ SynthDef(\crush, {
 /*
   SYNTH CONNEXION + MIXING
 */
-var bL, bR, inL, inR, cr, out;
-bL = Bus.audio(s, 1);
-bR = Bus.audio(s, 1);
-b = Bus.audio(s, 2);
+var bL, bR, bM, inL, inR, cr, out;
+bL = Bus.audio(s, 1);  // left bitcrush bus
+bR = Bus.audio(s, 1);  // right bitcrush bus
 
+/* setups:
+base setup:
 cr = Synth.new(\crush,
 	[inL:bL, inR:bR, fxout:0, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]);
-inL = Synth.before(cr, \impulse_crush, [bps:5, fxout:bL]);
-inR = Synth.before(cr, \impulse_crush, [bps:5, fxout:bR]);
+*/
+cr = Synth.new(\crush,
+	[inL:bL, inR:bR, fxout:0, lo:10, hi:10, fq:1, bs:1, ndist:10, ncmp:100, mkup:40]);
+inL = Synth.before(cr, \impulse_crush, [bps:3, fxout:bL]);
+inR = Synth.before(cr, \impulse_crush, [bps:3, fxout:bR]);
+m = Synth.new(\impulse_melody, [bps:2, dirout:0]);
 )
 
 
