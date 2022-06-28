@@ -28,8 +28,8 @@ SynthDef(\impulse_crush, {
 
 SynthDef(\crush, {
 	// distort + crush the output of \impulse_crush
-	arg input, fxout, ndist, ncmp, bs, lo, hi, fq, mkup, inL, inR;
-	var dist, comp, trf, eq, in;
+	arg input, dirout, ndist, ncmp, bs, lo, hi, fq, mkup, inL, inR, inC;
+	var dist, comp, trf, eq, in, mix;
 
 	// distorsion and compression functions
 	dist = {
@@ -44,6 +44,7 @@ SynthDef(\crush, {
 	};
 
 	// setting the bus inputs and mixing them to stereo
+	inC = Pan2.ar(In.ar(inC, 1), 0);
 	inL = Pan2.ar(In.ar(inL, 1), 1);
 	inR = Pan2.ar(In.ar(inR, 1), -1);
 	in = Mix([inL, inR]);
@@ -58,36 +59,62 @@ SynthDef(\crush, {
 	trf = Limiter.ar(trf, 1);
 	trf = dist.value(trf).clip;
 	trf = comp.value(inp:trf, makeup:35);
-	trf = Limiter.ar(trf, 1);
 
-	Out.ar(fxout, trf);
+	mix = Mix.new([Limiter.ar(trf, 0.2), inC]);
+
+	Out.ar(dirout, mix);
 }).add;
 
 
 
 
-SynthDef(\impulse_melody, {
-	// sine percussion w/ melodic mids and lows
+SynthDef(\melody, {
+	// sine percussion w/ melodic mids, lows and crackle
 	arg bps, dirout=0, fxout;
-	var bpsH, bpsB, impulseB, impulseH, high, bass, mix;
+	var pitch, delay, impulseB, impulseH, high, bass, crackle, env, mix;
 
-	bpsH = Dust2.ar(bps);
-	bpsB = Dust2.ar(SinOsc.ar(bps) * 10);
-	impulseH = BrownNoise.ar(bpsH);
-	impulseB = BrownNoise.ar(bpsB);
-	high = Ringz.ar(impulseH, 440,
+	// shorthand pitch and delay functions
+  pitch = {
+		// pitch shift the high inpulse to allow for some polyphony
+		arg in, window, ratio, disp, time;
+		PitchShift.ar(in, window, ratio, disp, time);
+	};
+	delay = {
+		// delay using high impulse as input to allow for some polyphony
+		arg in, max, delay, decay;
+		AllpassN.ar(in, max, delay, decay);
+	};
+
+	// build the impulses
+	impulseB = BrownNoise.ar(Dust2.ar(SinOsc.ar(bps) * 10));
+	impulseH = PinkNoise.ar(Dust2.ar(bps));
+	impulseH = Mix([
+		delay.value(pitch.value(impulseH, 1, 4, -40pi, 10), 1, 0.5, 0.2),
+		delay.value(pitch.value(impulseH, 2, 1, -100, 4), 0, 0, 0),
+		delay.value(pitch.value(impulseH, 1, 3, 200, 8.tanh), 10, 5, 3)
+	]);  // "fake" polyphony for the highs
+
+	env = Env.new([0, 0.9, 0.7, 0.5], [0.1, TExpRand.ar(1, 3, impulseH), 20], \welch);
+
+	high = Ringz.ar(impulseH,
+		TExpRand.ar(700, 300, Dust2.ar(bps)),
 		XLine.kr(
 			start:SinOsc.kr(impulseH) * 100,
 			end:2
-	));
+	)) * EnvGen.kr(env, impulseH, 0.5, 0.5);
 	bass = Ringz.ar(impulseB, SinOscFB.kr(100, 0.15) * 100,
 		XLine.ar(
 			start:SinOsc.kr(impulseB) * 100,
 			end:4
 	));
+	crackle = BPeakEQ.ar(
+		PinkNoise.ar(Dust2.ar(2)),
+		2000, 500, 5
+	);
 
-	mix = (bass*0.3) + (high*0.3);
-	Out.ar(dirout, mix ! 2);
+	mix = Limiter.ar(Mix([high * 0.7, crackle * 2, bass * 0.05]), 0.9);
+
+	Out.ar(fxout, mix ! 2);
 }).add;
 )
 
@@ -97,22 +124,29 @@ SynthDef(\impulse_melody, {
 /*
   SYNTH CONNEXION + MIXING
 */
-var bL, bR, bM, inL, inR, cr, out;
+var bL, bR, bC, inL, inR, cr, out, mel;
 bL = Bus.audio(s, 1);  // left bitcrush bus
 bR = Bus.audio(s, 1);  // right bitcrush bus
+bC = Bus.audio(s, 1);  // center bus : \melody
 
 /* setups:
-base setup:
-cr = Synth.new(\crush,
-	[inL:bL, inR:bR, fxout:0, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]);
+- the lower fq and mkup are, the clearer the crackle; the louder, the more crunch there is.
+- base setup:
+    cr = Synth.new(\crush,
+	    [inL:bL, inR:bR, fxout:0, lo:25, hi:10, fq:1000, bs:1, ndist:10, ncmp:100, mkup:40]
+    );
+- v cracly :
+    cr = Synth.new(\crush,
+	    [inL:bL, inR:bR, inC:bC, fxout:0, lo:10, hi:10, fq:1, bs:1, ndist:10, ncmp:100, mkup:1]
+    );
 */
 cr = Synth.new(\crush,
-	[inL:bL, inR:bR, fxout:0, lo:10, hi:10, fq:1, bs:1, ndist:10, ncmp:100, mkup:40]);
+	[inL:bL, inR:bR, inC:bC, fxout:0, lo:10, hi:10, fq:1, bs:1, ndist:10, ncmp:100, mkup:1]
+);
 inL = Synth.before(cr, \impulse_crush, [bps:3, fxout:bL]);
 inR = Synth.before(cr, \impulse_crush, [bps:3, fxout:bR]);
-m = Synth.new(\impulse_melody, [bps:2, dirout:0]);
+mel = Synth.before(cr, \melody, [bps:0.5, fxout:bC]);
 )
-
 
 
 (
@@ -144,3 +178,4 @@ s+(0.2*y)
 )
 */
 
+f.free;
