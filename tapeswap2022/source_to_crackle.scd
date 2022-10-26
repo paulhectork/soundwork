@@ -1,3 +1,5 @@
+s.boot;
+s.quit;
 
 /*
   play different sound sources at random intervals and process them to build crackle
