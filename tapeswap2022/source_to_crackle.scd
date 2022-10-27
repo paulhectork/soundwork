@@ -12,3 +12,33 @@ s.quit;
     and trigger sound and silence alternatively ?)
   - record to file
 */
+
+(
+/* SYNTHS */
+SynthDef(\player, {
+	/*
+	  play a file from a buffer
+	  out: the output channel
+	  bufnum: the buffer to play
+	*/
+	arg out=0, bufnum;
+  Out.ar(
+		out,
+    PlayBuf.ar(2, bufnum, BufRateScale.kr(bufnum)) ! 2
+  )
+}).add;
+
+)
+
+
+(
+/* PLAYING THE SYNTH */
+
+// read all sound files in the `sources/` folder and create buffers for each
+var path, bufferArray;
+path = PathName.new("/home/paulhector/musique/supercollider/tapeswap2022/sources");
+bufferArray = Array.new(100);
+path.filesDo( { arg file; bufferArray.add( Buffer.read(s, file.fullPath) ); });  // load all buffers in `bufferArray`
+
+Synth.new(\player, [bufnum:bufferArray.choose]);
+)
