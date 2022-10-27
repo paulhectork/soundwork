@@ -11,6 +11,13 @@ s.quit;
     another pattern, one which plays the sound inputs, the other which plays silence,
     and trigger sound and silence alternatively ?)
   - record to file
+
+  DOCUMENTATION
+  - pattern cookbook: http://doc.sccode.org/Tutorials/A-Practical-Guide/PG_01_Introduction.html
+  - patterns (to create a random sequence of buffer playback) : https://doc.sccode.org/Tutorials/Getting-Started/16-Sequencing-with-Patterns.html
+  - randomness : https://depts.washington.edu/dxscdoc/Help/Guides/Randomness.html
+  - buffers : https://depts.washington.edu/dxscdoc/Help/Classes/Buffer.html
+  - filepath manipulation (see `.filesDo`) : https://doc.sccode.org/Classes/PathName.html
 */
 
 (
@@ -29,25 +36,84 @@ SynthDef(\player, {
 }).add;
 )
 
+/*********************************************************************/
+
 (
-/* PLAYING THE SYNTH */
-// read all sound files in the `sources/` folder and create buffers for each
-var path, bufferArray;
+/* DEFINE THE BUFFERARRAY ENVIRONMENT VARIABLE -- WITH TIME */
+// `~bufferArray` = array of [buffer, buffer_duration_in_seconds]
+var path;
+Buffer.freeAll;
 path = PathName.new("/home/paulhector/musique/supercollider/tapeswap2022/sources");
-bufferArray = Array.new(100);
+~bufferArray = Array.new(100);
 path.filesDo({
   arg file;
-  bufferArray.add( Buffer.read(s, file.fullPath) );
-});  // load all buffers in `bufferArray`
+  b = Buffer.read(s, file.fullPath, action: {
+    // buffer loading is asynchronous =>
+    // when the buffer is loaded, add it and its duration to `~bufferArray`
+    arg buffer;
+    var duration = buffer.numFrames / buffer.sampleRate;  // duration in s.
+    ~bufferArray.add( [ buffer, duration ]);
+  });
+});
+)
 
+(
+/* PLAYING THE SYNTH -- WITH DURATION TIME IN `~bufferArray` */
 p = Pbind(
-	\instrument, \player,  // the instrument to play
-  \bufnum, Prand(bufferArray, inf),
-  // \freq, Prand([200, 400, 600, 800, 1000], inf),  // `inf ` is crucial as it allows for a constant loop
-	// \gate, Prand(Array.rand(20, 0, 0.01), inf),  // the gate
-	// \wait, Prand(Array.rand(20, 0, 2), inf),
-	\dur, Prand(Array.rand(7, 1, 3), inf)  // the duration
+  \buffer, Prand(~bufferArray, inf),
+  \instrument, \player,
+  \bufnum, Pkey(\buffer[0]),
+  \dur, Pkey(\buffer[1])
 );
 p.play;
 )
+
+(
+/* PLAYING THE SYNTH -- WITH DURATION TIME IN `~bufferArray` */
+// attempt using pfset
+p = Pfset(
+  {
+    ~bufferArray.postln;  // WHY IS IT NIL ???
+    ~bufArray = Prand(~bufferArray, inf);
+    ~buf = ~bufArray[0];
+    ~bufDur = ~bufArray[1];
+  }, Pbind(
+    \instrument, \player,
+    \bufnum, Pkey(\buf),
+    \dur, Pkey(\bufDur)
+  );
+);
+p.play;
+)
+
+/*********************************************************************/
+
+(
+/* DEFINE THE BUFFERARRAY ENVIRONMENT VARIABLE -- WITHOUT TIME */
+// `~bufferArray` = array of buffers.
+var path;
+Buffer.freeAll;
+path = PathName.new("/home/paulhector/musique/supercollider/tapeswap2022/sources");
+~bufferArray = Array.new(100);
+path.filesDo({
+  // add the buffer to `~bufferArray` asynchronously
+  arg file;
+  b = Buffer.read(s, file.fullPath, action: {
+    arg buffer;
+    ~bufferArray.add( buffer );
+  })
+});
+)
+
+(
+/* PLAYING THE SYNTH -- WITHOUT DURATION TIME IN `~bufferArray` */
+p = Pbind(
+  \buffer, Prand(~bufferArray, inf),
+  \instrument, \player,
+  \bufnum, Pkey(\buffer),
+  \dur, (Pkey(\buffer.numFrames) / Pkey(\buffer.sampleRate))
+);
+p.play;
+)
+
 
