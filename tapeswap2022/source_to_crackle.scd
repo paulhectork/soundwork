@@ -62,26 +62,8 @@ path.filesDo({
 p = Pbind(
   \buffer, Prand(~bufferArray, inf),
   \instrument, \player,
-  \bufnum, Pkey(\buffer[0]),
-  \dur, Pkey(\buffer[1])
-);
-p.play;
-)
-
-(
-/* PLAYING THE SYNTH -- WITH DURATION TIME IN `~bufferArray` */
-// attempt using pfset
-p = Pfset(
-  {
-    ~bufferArray.postln;  // WHY IS IT NIL ???
-    ~bufArray = Prand(~bufferArray, inf);
-    ~buf = ~bufArray[0];
-    ~bufDur = ~bufArray[1];
-  }, Pbind(
-    \instrument, \player,
-    \bufnum, Pkey(\buf),
-    \dur, Pkey(\bufDur)
-  );
+  \bufnum, Pfunc { |event| event[\buffer][0] },  // define a `Pfunc` function to access the previous event named `\buffer`
+  \dur, Pfunc { |event| event[\buffer][1] }
 );
 p.play;
 )
@@ -110,8 +92,8 @@ path.filesDo({
 p = Pbind(
   \buffer, Prand(~bufferArray, inf),
   \instrument, \player,
-  \bufnum, Pkey(\buffer),
-  \dur, (Pkey(\buffer.numFrames) / Pkey(\buffer.sampleRate))
+  \bufnum, Pfunc { arg event; event[\buffer] },  // define a `Pfunc` function to access the previous event named `\buffer`
+  \dur, Pfunc { arg event; event[\buffer].numFrames / event[\buffer].sampleRate }  // duration
 );
 p.play;
 )
