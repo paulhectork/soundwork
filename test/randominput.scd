@@ -1,4 +1,4 @@
-s.boot;
+ s.boot;
 
 /*
   randomize the playback of input files
