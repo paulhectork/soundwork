@@ -7,10 +7,10 @@ SynthDef(\crackle, {
   /**
    * crackle generation
    *
-   * @arg bps: impulses / second
-   * @arg ringratio: ring to crackle ratio. in range 0..1
-   * @arg rfreqsrc: ring frequency
-   * @arg out: output buffer
+   * @arg bps       : impulses / second
+   * @arg ringratio : ring to crackle ratio. in range 0..1
+   * @arg rfreqsrc  : ring frequency
+   * @arg out       : output buffer
    */
   arg bps, out=0;
   var tempo;
@@ -73,8 +73,8 @@ SynthDef(\polyring, {
   polyring = PinkNoise.ar(
     Mix(polyring),
     TExpRand.ar(
-      0.0001                    // lo number
-      , 0.2                     // hi number
+      0.0001                        // lo number
+      , 0.2                         // hi number
       , PulseDivider.ar(ring * 10)  // trigger
     )
   );
@@ -86,6 +86,11 @@ SynthDef(\mixmono, {
   /**
    * mix the different layers together
    * into a single mono channel
+   *
+   * @arg crackle   : the crackle buffer
+   * @arg polyring  : the polyring buffer
+   * @arg ringratio : polyring to crackle ratio
+   * @arg out       : output buffer
    */
   arg crackle, polyring, ringratio=0.05, out=0;
   var mix;
@@ -102,9 +107,9 @@ SynthDef(\mixstereo, {
    * mix the different channels together
    * into a stereo channel
    *
-   * @arg inL: left ear input
-   * @arg inR: right ear input
-   * @arg out: the output buffer
+   * @arg inL : left ear input
+   * @arg inR : right ear input
+   * @arg out : the output buffer
    */
   arg inL, inR, out=0;
   var mix;
@@ -151,6 +156,7 @@ eqparams = [
   , [ 1, 20 ]  // harsh
 ];
 
+// PROBLEM: CRACKLE SEEMS TO BE IN THE RIGHT EAR ONLY
 
 paramsCrackle = [ bps:100 ];
 paramsPolyring = [ freqsrc:100, freqeq:70, rq:eqparams[0][0], db:eqparams[0][1] ];  // freqsrc:100 / freqeq:100 and eqparams[1] is a sweet spot
